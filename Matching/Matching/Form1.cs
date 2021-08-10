@@ -15,7 +15,7 @@ using Emgu.CV.Util;
 
 namespace Matching
 {
-    class DataPoint
+    public class DataPoint
     {
         public double angle;
         public Point topleft;
@@ -28,7 +28,7 @@ namespace Matching
         }
     }
 
-    class DataRotation
+    public class DataRotation
     {
         public double angle;
         public Mat tplimgR;
@@ -93,9 +93,8 @@ namespace Matching
         {
             try
             {
-                int maxleval = 4;
+                int maxleval = 3;
                 double threshscore = 0.5;
-
                 Image<Bgr, Byte> outputimg = FastTemplateMatch(ref_img, tpl_img, maxleval, threshscore);
                 
                 pictureBox3.Image = outputimg.ToBitmap();
@@ -145,25 +144,26 @@ namespace Matching
         // Rotation Image
         private Mat Rotation(Mat image, double angleInDegrees)
         {
-            int h = image.Height;
-            int w = image.Width;
+            int width = image.Width;
+            int height = image.Height;
+
             Matrix<double> r = new Matrix<double>(2, 3);
-            Point img_c = new Point(w / 2, h / 2);
-            CvInvoke.GetRotationMatrix2D(img_c, angleInDegrees, 1.0, r);
+            PointF center = new PointF((float)width / 2, (float)height / 2);
+            CvInvoke.GetRotationMatrix2D(center, angleInDegrees, 1.0, r);
+
             double rad = (Math.PI / 180) * angleInDegrees;
-            double si = Math.Sin(rad);
-            double co = Math.Cos(rad);
-            double b_w = Math.Abs(h * Math.Abs(si) + w * Math.Abs(co));
-            double b_h = (int)(h * Math.Abs(co) + w * Math.Abs(si));
-            r[0, 2] += b_w / 2 - img_c.X;
-            r[1, 2] += b_h / 2 - img_c.Y;
+            double width_rotate = Math.Abs(width * Math.Cos(rad)) + Math.Abs(height * Math.Sin(rad));
+            double height_rotate = Math.Abs(width * Math.Sin(rad)) + Math.Abs(height * Math.Cos(rad));
+            r[0, 2] += (width_rotate - width) / 2;
+            r[1, 2] += (height_rotate - height) / 2;
+
             Mat img_rotate = new Mat();
-            CvInvoke.WarpAffine(image, img_rotate, r, new Size((int) b_w, (int) b_h), Inter.Nearest, Warp.Default, BorderType.Transparent, new MCvScalar(0d, 0d, 0d, 0d));
+            CvInvoke.WarpAffine(image, img_rotate, r, new Size((int) width_rotate, (int) height_rotate), Inter.Linear, Warp.Default, BorderType.Constant, new MCvScalar(0d, 0d, 0d, 0d));
             return img_rotate;
         }
 
         // Reangle box template
-        private void RecangleX(Image<Bgr, Byte> refimg, int W, int H, int Wt, int Ht, DataPoint data)
+        private void RecangleX(Image<Bgr, Byte> outimg, int W, int H, int Wt, int Ht, DataPoint data)
         {
             double angle = data.angle;
             Point pt = data.topleft;
@@ -183,12 +183,12 @@ namespace Matching
             point4 = new Point(point4.X + pt.X + Wt / 2, point4.Y + pt.Y + Ht / 2);
 
             string Text = "(" + Convert.ToString(center.X) + ", " + Convert.ToString(center.Y) + "), " + Convert.ToString(angle);
-            CvInvoke.PutText(refimg, Text, point1, FontFace.HersheySimplex, 1.0, new Bgr(Color.Red).MCvScalar);
+            CvInvoke.PutText(outimg, Text, point1, FontFace.HersheySimplex, 1.0, new Bgr(Color.Red).MCvScalar);
 
-            CvInvoke.Line(refimg, point1, point2, new Bgr(Color.Red).MCvScalar, 2);
-            CvInvoke.Line(refimg, point2, point3, new Bgr(Color.Red).MCvScalar, 2);
-            CvInvoke.Line(refimg, point3, point4, new Bgr(Color.Red).MCvScalar, 2);
-            CvInvoke.Line(refimg, point4, point1, new Bgr(Color.Red).MCvScalar, 2);
+            CvInvoke.Line(outimg, point1, point2, new Bgr(Color.Red).MCvScalar, 2);
+            CvInvoke.Line(outimg, point2, point3, new Bgr(Color.Red).MCvScalar, 2);
+            CvInvoke.Line(outimg, point3, point4, new Bgr(Color.Red).MCvScalar, 2);
+            CvInvoke.Line(outimg, point4, point1, new Bgr(Color.Red).MCvScalar, 2);
         }
 
         // Built list Rotation
@@ -207,8 +207,8 @@ namespace Matching
                 Mat masktplr = new Mat();
                 double step_save = step;
                 Mat tplimg = tplimgs[i];
-                int Wt = tplimg.Width; int Ht = tplimg.Height;
-                Mat masktpl = Mat.Ones(Ht, Wt, DepthType.Cv8U, 1);
+                int Wt = tplimg.Cols; int Ht = tplimg.Rows;
+                Mat masktpl = Mat.Ones(Ht, Wt, DepthType.Cv8U, 1) * 255;
                 step = Math.Sqrt(2) / (Math.Sqrt(Math.Pow(Ht, 2) + Math.Pow(Wt, 2)) * Math.PI) * 360;
                 if (i == maxlevel)
                 {
@@ -274,18 +274,15 @@ namespace Matching
             for (int i = 0; i < l; ++i)
             {
                 double maxval = ANS[i].maxval;
-                Point pt = ANS[i].topleft;
                 Point center = ANS[i].center;
                 bool check = false;
                 for (int j = 0; j < l; ++j)
                 {
                     if (j == i) continue;
                     double maxvalT = ANS[j].maxval;
-                    Point ptT = ANS[j].topleft;
                     Point centerT = ANS[j].center;
                     double disc = Math.Sqrt(Math.Pow(centerT.X - center.X, 2) + Math.Pow(centerT.Y - center.Y, 2));
-                    double distl = Math.Sqrt(Math.Pow(ptT.X - pt.X, 2) + Math.Pow(ptT.Y - pt.Y, 2));
-                    if (disc < distance && distl < distance)
+                    if (disc < distance)
                     {
                         if (maxval < maxvalT)
                         {
@@ -318,11 +315,13 @@ namespace Matching
                     int tW = tplimg_new.Cols; int tH = tplimg_new.Rows;
 
                     Mat result = new Mat();
+
                     CvInvoke.MatchTemplate(refimg, tplimg_new, result, Emgu.CV.CvEnum.TemplateMatchingType.CcorrNormed, masktpl_new);
 
                     double minval = 0.0, maxval = 0.0;
                     Point minloc = new Point(), maxloc = new Point();
                     CvInvoke.MinMaxLoc(result, ref minval, ref maxval, ref minloc, ref maxloc);
+
                     if (maxval > threshold)
                     {
                         Mat threshed = new Mat(), threshed8u = new Mat();
@@ -392,9 +391,6 @@ namespace Matching
                         }
 
                         int tW = tplimg_new.Cols; int tH = tplimg_new.Rows;
-                        int dX = W - tW + 1; int dY = H - tH + 1;
-
-                        Mat result = Mat.Zeros(dX, dY, Emgu.CV.CvEnum.DepthType.Cv32S, 1);
 
                         int x = loc.X - 3 > 0 ? loc.X - 3 : 0;
                         int y = loc.Y - 3 > 0 ? loc.Y - 3 : 0;
@@ -453,12 +449,14 @@ namespace Matching
             // Process each levelstd::
             for (int level = maxlevel; level >= 0; level--)
             {
-                //Console.WriteLine($"Level: {level}");
-
+                Console.WriteLine($"Level: {level}");
+                Console.WriteLine($"Step: {step}");
                 refimg = refimgs[level];
                 tplimg = tplimgs[level];
 
-                masktpl = Mat.Ones(tplimg.Height, tplimg.Width, Emgu.CV.CvEnum.DepthType.Cv8U, 1);
+                masktpl = Mat.Ones(tplimg.Rows, tplimg.Cols, Emgu.CV.CvEnum.DepthType.Cv8U, 1) * 255;
+                //CvInvoke.Imshow("masksssss", masktpl);
+                //CvInvoke.WaitKey(0);
 
                 int Wt = tplimg.Cols; int Ht = tplimg.Rows;
 
@@ -475,18 +473,19 @@ namespace Matching
         // Main run
         Image<Bgr, Byte> FastTemplateMatch(Image<Bgr, Byte> refimgRGB, Image<Bgr, Byte> tplimgRGB, int maxlevel, double threshscore)
         {
+            List<List<DataRotation>> rotations;
+            List<DataPoint> RES;
             Mat refimg = new Mat();
             Mat tplimg = new Mat();
+
             CvInvoke.CvtColor(refimgRGB, refimg, Emgu.CV.CvEnum.ColorConversion.Rgb2Gray);
             CvInvoke.CvtColor(tplimgRGB, tplimg, Emgu.CV.CvEnum.ColorConversion.Rgb2Gray);
 
-            int Wt = tplimg.Cols; int Ht = tplimg.Rows;
-            double step = Math.Sqrt(2) / (Math.Sqrt(Math.Pow(Wt, 2) + Math.Pow(Ht, 2)) * Math.PI) * 360;
             Console.WriteLine($"input shape: {refimg.Size}");
             Console.WriteLine($"template shape: {tplimg.Size}");
 
-            List<List<DataRotation>> rotations;
-            List<DataPoint> RES;
+            Image<Bgr, Byte> outimg = refimgRGB.Clone();
+            int Wt = tplimg.Cols; int Ht = tplimg.Rows;
 
             // Build Rotated Image
             DateTime dtB = DateTime.Now;
@@ -507,10 +506,10 @@ namespace Matching
                     data.Printf();
                     Mat tplimg_new = Rotation(tplimg, data.angle);
                     int tW = tplimg_new.Cols; int tH = tplimg_new.Rows;
-                    RecangleX(refimgRGB, Wt, Ht, tW, tH, data);
+                    RecangleX(outimg, Wt, Ht, tW, tH, data);
                 }
             }
-            return refimgRGB;
+            return outimg;
         }
     }
 }
