@@ -16,5 +16,10 @@ namespace Matching
         {
             InitializeComponent();
         }
+
+        private void App_Load(object sender, EventArgs e)
+        {
+
+        }
     }
 }

@@ -97,3 +97,5 @@ E:\ST4I\C# WinFrom\Matching_new\Matching\Matching\obj\Release\Matching.csproj.Co
 E:\ST4I\C# WinFrom\Matching_new\Matching\Matching\obj\Release\Matching.csproj.CopyComplete
 E:\ST4I\C# WinFrom\Matching_new\Matching\Matching\obj\Release\Matching.exe
 E:\ST4I\C# WinFrom\Matching_new\Matching\Matching\obj\Release\Matching.pdb
+E:\ST4I\C# WinFrom\Matching_new\Matching\Matching\obj\Release\Matching.Form1.resources
+E:\ST4I\C# WinFrom\Matching_new\Matching\Matching\obj\Release\Matching.App.resources
