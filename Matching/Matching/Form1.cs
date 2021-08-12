@@ -23,7 +23,7 @@ namespace Matching
         readonly MatchingPyramidNCC RUN = new MatchingPyramidNCC
         {
             ThreshScore = 0.5,
-            LevelPyramid = 4
+            LevelPyramid = 3
         };
 
         public Form1()
@@ -41,7 +41,7 @@ namespace Matching
                     ref_imgRGB = new Mat(op.FileName);
                     ref_img = new Mat(op.FileName, ImreadModes.Grayscale);
                     Console.WriteLine($"Input Shape: {ref_img.Size}");
-                    pictureBox1.Image = ref_img.ToBitmap();
+                    imbInput.Image = ref_img.Clone();
                 }
             }
             catch (Exception ex)
@@ -58,12 +58,12 @@ namespace Matching
                 if (op.ShowDialog() == DialogResult.OK)
                 {
                     RUN.imageTemplate = new Mat(op.FileName, ImreadModes.Grayscale);
-                    pictureBox2.Image = RUN.imageTemplate.ToBitmap();
+                    imbTemplate.Image = RUN.imageTemplate.Clone();
                 }
                 Console.WriteLine($"Template Shape: {RUN.imageTemplate.Size}");
 
                 DateTime dtS = DateTime.Now;
-                RUN.SetTemplate(new double[2]{ 0, 360 });
+                RUN.SetTemplate(new double[2] { 0, 360 });
                 TimeSpan tsS = DateTime.Now - dtS;
                 Console.WriteLine($"Time set template: {tsS}");
             }
@@ -78,14 +78,19 @@ namespace Matching
             try
             {
                 DateTime dtM = DateTime.Now;
+
+                var stopWatch = new Stopwatch();
+                stopWatch.Start();
                 List<DataPoint> RES = RUN.Matching(ref_img);
+                stopWatch.Stop();
+
                 TimeSpan tsM = DateTime.Now - dtM;
-                Console.WriteLine($"Time Matching: {tsM}");
-
+                Console.WriteLine($"Time Matching: {stopWatch.ElapsedMilliseconds} ms");
+                
                 Mat outputimg = RUN.DrawBoundaryResult(ref_imgRGB, RES);
-
+                
                 Console.WriteLine("-----------");
-                pictureBox3.Image = outputimg.ToBitmap();
+                imbResult.Image = outputimg.Clone();
             }
             catch (Exception ex)
             {

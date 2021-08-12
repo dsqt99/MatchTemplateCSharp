@@ -209,7 +209,7 @@ namespace Matching
                 double step = Math.Sqrt(2) / (Math.Sqrt(Math.Pow(Ht, 2) + Math.Pow(Wt, 2)) * Math.PI) * 360;
                 if (i == levelPyramid)
                 {
-                    rotated.Add(new DataRotation() { angle = 0, tplimgR = tplimgs[i] }) ;
+                    rotated.Add(new DataRotation() { angle = 0, tplimgR = tplimgs[i] });
                     for (double angle = rotationRange.LowerValue; angle < rotationRange.UpperValue; angle += step)
                     {
                         if (angle != 0)
@@ -260,7 +260,6 @@ namespace Matching
                 rotations.Add(rotated);
             }
             rotations.Reverse();
-            Console.WriteLine("Done build Rotation !!!");
             return rotations;
         }
 
@@ -340,9 +339,8 @@ namespace Matching
                         CvInvoke.InRange(threshed, new ScalarArray(threshScore), new ScalarArray(1), threshed8u);
 
                         VectorOfVectorOfPoint contours = new VectorOfVectorOfPoint();
-                        Mat m = new Mat();
 
-                        CvInvoke.FindContours(threshed8u, contours, m, Emgu.CV.CvEnum.RetrType.External, Emgu.CV.CvEnum.ChainApproxMethod.ChainApproxSimple);
+                        CvInvoke.FindContours(threshed8u, contours, null, Emgu.CV.CvEnum.RetrType.External, Emgu.CV.CvEnum.ChainApproxMethod.ChainApproxSimple);
 
                         for (int i = 0; i < contours.Size; i++)
                         {
@@ -454,6 +452,32 @@ namespace Matching
             {
                 RotationRange.LowerValue = rotationRange[0];
                 RotationRange.UpperValue = rotationRange[1];
+            }
+            if (listSamples != null)
+            {
+                foreach (var item in listSamples)
+                {
+                    foreach (var data in item)
+                    {
+                        if (data != null)
+                        {
+                            if (data.tplimgR != null)
+                            {
+                                if (data.tplimgR.Ptr != IntPtr.Zero)
+                                {
+                                    data.tplimgR.Dispose();
+                                }
+                            }
+                            if (data.masktplR != null)
+                            {
+                                if (data.masktplR.Ptr != IntPtr.Zero)
+                                {
+                                    data.masktplR.Dispose();
+                                }
+                            }
+                        }
+                    }
+                }
             }
             listSamples = ListRotation();
         }
