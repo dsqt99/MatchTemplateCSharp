@@ -209,20 +209,27 @@ namespace Matching
                 double step = Math.Sqrt(2) / (Math.Sqrt(Math.Pow(Ht, 2) + Math.Pow(Wt, 2)) * Math.PI) * 360;
                 if (i == levelPyramid)
                 {
+                    rotated.Add(new DataRotation() { angle = 0, tplimgR = tplimgs[i] }) ;
                     for (double angle = rotationRange.LowerValue; angle < rotationRange.UpperValue; angle += step)
                     {
-                        DataRotation ans = new DataRotation
+                        if (angle != 0)
                         {
-                            angle = angle,
-                            tplimgR = tplimgr,
-                            masktplR = masktplr,
-                        };
-                        rotated.Add(ans);
+                            DataRotation ans = new DataRotation
+                            {
+                                angle = angle,
+                                tplimgR = tplimgr,
+                                masktplR = masktplr,
+                            };
+                            rotated.Add(ans);
+                        }
                     }
                 }
                 else
                 {
-                    List<DataRotation> rotated_new = new List<DataRotation>();
+                    List<DataRotation> rotated_new = new List<DataRotation>
+                    {
+                        new DataRotation() { angle = 0, tplimgR = tplimgs[i] }
+                    };
                     foreach (DataRotation data in rotated)
                     {
                         double goc = data.angle;
@@ -230,7 +237,7 @@ namespace Matching
                         double end = (goc + step * 2 < 360) ? goc + step * 2 : 360;
                         for (double angle = start; angle < end; angle += step)
                         {
-                            if (CheckAngleR(rotated_new, angle, step).angle == -1)
+                            if (angle != 0 && CheckAngleR(rotated_new, angle, step).angle == -1)
                             {
                                 if (i == 0)
                                 {
@@ -295,13 +302,12 @@ namespace Matching
         private List<DataPoint> Comparation(Mat src_refimg, int level, List<DataPoint> ANS)
         {
             List<DataPoint> RES = new List<DataPoint>();
-            VectorOfMat refimgs = new VectorOfMat(), tplimgs = new VectorOfMat();
+            VectorOfMat refimgs = new VectorOfMat();
 
             CvInvoke.BuildPyramid(src_refimg, refimgs, levelPyramid);
-            CvInvoke.BuildPyramid(imageTemplate, tplimgs, levelPyramid);
 
             Mat refimg = refimgs[level];
-            Mat tplimg = tplimgs[level];
+            Mat tplimg = listSamples[level][0].tplimgR;
 
             Mat masktpl = Mat.Ones(tplimg.Height, tplimg.Width, Emgu.CV.CvEnum.DepthType.Cv8U, 1) * 255;
 
@@ -312,7 +318,7 @@ namespace Matching
 
             if (level == levelPyramid)
             {
-                for (double angle = 0; angle < 360; angle += step)
+                for (double angle = rotationRange.LowerValue; angle < rotationRange.UpperValue; angle += step)
                 {
                     Mat tplimg_new = Rotation(tplimg, 1, angle);
                     Mat masktpl_new = Rotation(masktpl, 0, angle);
