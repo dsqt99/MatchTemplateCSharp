@@ -20,15 +20,36 @@ namespace Matching
     public partial class Form1 : Form
     {
         Mat ref_img, ref_imgRGB;
-        readonly MatchingPyramidNCC RUN = new MatchingPyramidNCC
-        {
-            ThreshScore = 0.5,
-            LevelPyramid = 3
-        };
+        float RangeRotationLow, RangeRotationUp;
+        double threshScore;
+        int levelPyramid;   
 
         public Form1()
         {
             InitializeComponent();
+        }
+        private void panel1_Paint(object sender, PaintEventArgs e)
+        {
+
+        }
+
+        private void numericUpDown1_ValueChanged(object sender, EventArgs e)
+        {
+            RangeRotationLow = (float) numericUpDown1.Value;
+        }
+
+        private void numericUpDown2_ValueChanged(object sender, EventArgs e)
+        {
+            RangeRotationUp = (float) numericUpDown2.Value;
+        }
+
+        private void numericUpDown3_ValueChanged(object sender, EventArgs e)
+        {
+            levelPyramid = (int)numericUpDown3.Value;
+        }
+        private void numericUpDown4_ValueChanged(object sender, EventArgs e)
+        {
+            threshScore = (double)numericUpDown4.Value;
         }
 
         private void RefImg_Click(object sender, EventArgs e)
@@ -50,6 +71,20 @@ namespace Matching
             }
         }
 
+        MatchingPyramidNCC RUN = new MatchingPyramidNCC();
+
+        private void Save_Parameter_Click(object sender, EventArgs e)
+        {
+            RUN.RotationRange = new ValueRange<float> { Minimum = 0, Maximum = 360, LowerValue = RangeRotationLow, UpperValue = RangeRotationUp };
+            RUN.ThreshScore = threshScore;
+            RUN.LevelPyramid = levelPyramid;
+
+            DateTime dtS = DateTime.Now;
+            RUN.SetTemplate();
+            TimeSpan tsS = DateTime.Now - dtS;
+            Console.WriteLine($"Time set template: {tsS}");
+        }
+
         private void Tplimg_Click(object sender, EventArgs e)
         {
             try
@@ -57,15 +92,10 @@ namespace Matching
                 OpenFileDialog op = new OpenFileDialog();
                 if (op.ShowDialog() == DialogResult.OK)
                 {
-                    RUN.imageTemplate = new Mat(op.FileName, ImreadModes.Grayscale);
-                    imbTemplate.Image = RUN.imageTemplate.Clone();
+                    RUN.ImageTemplate = new Mat(op.FileName, ImreadModes.Grayscale);
+                    imbTemplate.Image = RUN.ImageTemplate.Clone();
                 }
-                Console.WriteLine($"Template Shape: {RUN.imageTemplate.Size}");
-
-                DateTime dtS = DateTime.Now;
-                RUN.SetTemplate(new double[2] { 0, 360 });
-                TimeSpan tsS = DateTime.Now - dtS;
-                Console.WriteLine($"Time set template: {tsS}");
+                Console.WriteLine($"Template Shape: {RUN.ImageTemplate.Size}");               
             }
             catch (Exception ex)
             {
@@ -77,14 +107,11 @@ namespace Matching
         {
             try
             {
-                DateTime dtM = DateTime.Now;
-
                 var stopWatch = new Stopwatch();
                 stopWatch.Start();
                 List<DataPoint> RES = RUN.Matching(ref_img);
                 stopWatch.Stop();
 
-                TimeSpan tsM = DateTime.Now - dtM;
                 Console.WriteLine($"Time Matching: {stopWatch.ElapsedMilliseconds} ms");
                 
                 Mat outputimg = RUN.DrawBoundaryResult(ref_imgRGB, RES);

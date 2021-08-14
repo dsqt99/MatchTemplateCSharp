@@ -18,7 +18,7 @@ namespace Matching
 {
     public class DataPoint
     {
-        public double angle;
+        public float angle;
         public Point topleft;
         public Point center;
         public double maxval;
@@ -31,26 +31,15 @@ namespace Matching
 
     public class DataRotation
     {
-        public double angle;
+        public float angle;
         public Mat tplimgR;
         public Mat masktplR;
     }
 
-    public struct PointD
-    {
-        public double X;
-        public double Y;
-        public PointD(double x, double y)
-        {
-            X = x;
-            Y = y;
-        }
-    }
-
     public class MatchingPyramidNCC
     {
-        private ValueRange<double> rotationRange = new ValueRange<double>();
-        public Mat imageTemplate;
+        private ValueRange<float> rotationRange;
+        private Mat imageTemplate;
         private double threshScore;
         private int levelPyramid;
         private List<List<DataRotation>> listSamples = new List<List<DataRotation>>();
@@ -58,7 +47,7 @@ namespace Matching
         /// <summary>
         /// Rotation range in degree
         /// </summary>
-        public ValueRange<double> RotationRange
+        public ValueRange<float> RotationRange
         {
             get
             {
@@ -67,6 +56,15 @@ namespace Matching
             set
             {
                 rotationRange = value;
+            }
+        }
+
+        public Mat ImageTemplate
+        {
+            get { return imageTemplate; }
+            set
+            {
+                imageTemplate = value;
             }
         }
 
@@ -91,61 +89,46 @@ namespace Matching
             }
         }
 
-        /// <summary>
-        /// Set template
-        /// </summary>
-        /// <param name="img"></param>
-        /// <param name="threshScore"></param>
-
         // Check angle disapearence
-        private DataRotation CheckAngleR(List<DataRotation> check, double angle, double step)
-        {
-            foreach (DataRotation data in check)
-            {
-                if (Math.Abs(data.angle - angle) < step) return data;
-            }
-            DataRotation ans = new DataRotation { angle = -1 };
-            return ans;
-        }
-
-        // Check angle disapearence
-        private DataPoint CheckAngleP(List<DataPoint> check, double angle, double step)
+        private bool CheckAngleP(List<DataPoint> check, DataPoint dataX)
         {
             foreach (DataPoint data in check)
             {
-                if (Math.Abs(data.angle - angle) < step) return data;
+                if (data.maxval == dataX.maxval)
+                {
+                    if (data.angle == dataX.angle || data.center == dataX.center) return false;
+                }
             }
-            DataPoint ans = new DataPoint { angle = -1 };
-            return ans;
+            return true;
         }
 
         // Subpixel 
-        private PointD Subpixel(Mat result, Point p)
+        private PointF Subpixel(Mat result, Point p)
         {
             Matrix<Byte> matrix = new Matrix<Byte>(result.Height, result.Width, result.NumberOfChannels);
             result.CopyTo(matrix);
-            double deltaX = 0, deltaY = 0;
+            float deltaX = 0, deltaY = 0;
             if (p.X > 0 && p.X < result.Width - 1 && (2 * matrix[p.Y, p.X - 1] - 4 * matrix[p.Y, p.X] + 2 * matrix[p.Y, p.X + 1]) != 0)
                 deltaX = (matrix[p.Y, p.X - 1] - matrix[p.Y, p.X + 1]) / (2 * matrix[p.Y, p.X - 1] - 4 * matrix[p.Y, p.X] + 2 * matrix[p.Y, p.X + 1]);
             if (p.Y > 0 && p.Y < result.Height - 1 && (2 * matrix[p.Y + 1, p.X] - 4 * matrix[p.Y, p.X] + 2 * matrix[p.Y - 1, p.X]) != 0)
                 deltaY = (matrix[p.Y + 1, p.X] - matrix[p.Y - 1, p.X]) / (2 * matrix[p.Y + 1, p.X] - 4 * matrix[p.Y, p.X] + 2 * matrix[p.Y - 1, p.X]);
-            PointD res = new PointD(deltaX, deltaY);
+            PointF res = new PointF(deltaX, deltaY);
             return res;
         }
 
         // Rotation Image
-        private Mat Rotation(Mat image, int method, double angleInDegrees)
+        private Mat Rotation(Mat image, int method, float angleInDegrees)
         {
             int width = image.Width;
             int height = image.Height;
 
-            Matrix<double> r = new Matrix<double>(2, 3);
+            Matrix<float> r = new Matrix<float>(2, 3);
             PointF center = new PointF((float)width / 2, (float)height / 2);
             CvInvoke.GetRotationMatrix2D(center, angleInDegrees, 1.0, r);
 
-            double rad = (Math.PI / 180) * angleInDegrees;
-            double width_rotate = Math.Abs(width * Math.Cos(rad)) + Math.Abs(height * Math.Sin(rad));
-            double height_rotate = Math.Abs(width * Math.Sin(rad)) + Math.Abs(height * Math.Cos(rad));
+            float rad = (float) ((Math.PI / 180) * angleInDegrees);
+            float width_rotate = (float) (Math.Abs(width * Math.Cos(rad)) + Math.Abs(height * Math.Sin(rad)));
+            float height_rotate = (float) (Math.Abs(width * Math.Sin(rad)) + Math.Abs(height * Math.Cos(rad)));
             r[0, 2] += (width_rotate - width) / 2;
             r[1, 2] += (height_rotate - height) / 2;
 
@@ -161,10 +144,10 @@ namespace Matching
         // Reangle box template
         private void RecangleX(Mat outimg, int tW, int tH, DataPoint data)
         {
-            double angle = data.angle;
+            float angle = data.angle;
             Point pt = data.topleft;
             Point center = data.center;
-            double anglerad = (double)(angle * Math.PI / 180);
+            float anglerad = (float)(angle * Math.PI / 180);
             var point1 = new Point(-imageTemplate.Width / 2, -imageTemplate.Height / 2);
             var point2 = new Point(imageTemplate.Width / 2, -imageTemplate.Height / 2);
             var point3 = new Point(imageTemplate.Width / 2, imageTemplate.Height / 2);
@@ -194,68 +177,45 @@ namespace Matching
         private List<List<DataRotation>> ListRotation()
         {
             List<List<DataRotation>> rotations = new List<List<DataRotation>>();
-            List<DataRotation> rotated = new List<DataRotation>();
             VectorOfMat tplimgs = new VectorOfMat();
+            double res = 0;
 
             CvInvoke.BuildPyramid(imageTemplate, tplimgs, levelPyramid);
 
             for (int i = levelPyramid; i >= 0; i--)
             {
+                List<DataRotation> rotated = new List<DataRotation>();
                 Mat tplimgr = new Mat();
                 Mat masktplr = new Mat();
+
                 Mat tplimg = tplimgs[i];
                 int Wt = tplimg.Width; int Ht = tplimg.Height;
                 Mat masktpl = Mat.Ones(Ht, Wt, DepthType.Cv8U, 1) * 255;
-                double step = Math.Sqrt(2) / (Math.Sqrt(Math.Pow(Ht, 2) + Math.Pow(Wt, 2)) * Math.PI) * 360;
-                if (i == levelPyramid)
-                {
-                    rotated.Add(new DataRotation() { angle = 0, tplimgR = tplimgs[i] });
-                    for (double angle = rotationRange.LowerValue; angle < rotationRange.UpperValue; angle += step)
-                    {
-                        if (angle != 0)
-                        {
-                            DataRotation ans = new DataRotation
-                            {
-                                angle = angle,
-                                tplimgR = tplimgr,
-                                masktplR = masktplr,
-                            };
-                            rotated.Add(ans);
-                        }
-                    }
-                }
-                else
-                {
-                    List<DataRotation> rotated_new = new List<DataRotation>
-                    {
-                        new DataRotation() { angle = 0, tplimgR = tplimgs[i] }
-                    };
-                    foreach (DataRotation data in rotated)
-                    {
-                        double goc = data.angle;
-                        double start = (goc - step * 2 > 0) ? goc - step * 2 : 0;
-                        double end = (goc + step * 2 < 360) ? goc + step * 2 : 360;
-                        for (double angle = start; angle < end; angle += step)
-                        {
-                            if (angle != 0 && CheckAngleR(rotated_new, angle, step).angle == -1)
-                            {
-                                if (i == 0)
-                                {
-                                    tplimgr = Rotation(tplimg, 1, angle);
-                                    masktplr = Rotation(masktpl, 0, angle);
-                                }
-                                DataRotation ans = new DataRotation
-                                {
-                                    angle = angle,
-                                    tplimgR = tplimgr,
-                                    masktplR = masktplr
-                                };
-                                rotated_new.Add(ans);
-                            }
+                float step = (float) (Math.Sqrt(2) / (Math.Sqrt(Math.Pow(Ht, 2) + Math.Pow(Wt, 2)) * Math.PI) * 360);
+                rotated.Add(new DataRotation() { angle = 0, tplimgR = tplimg, masktplR = masktpl });
 
-                        }
+                for (float angle = rotationRange.LowerValue; angle < rotationRange.UpperValue; angle += step)
+                {
+                    if (angle == 0) continue;
+                    if (i == levelPyramid || i == 0)
+                    {
+                        tplimgr = Rotation(tplimg, 1, angle);
+                        masktplr = Rotation(masktpl, 0, angle);
+                        res += (tplimgr.Width*tplimgr.Height) * 2;
                     }
-                    rotated = new List<DataRotation>(rotated_new);
+                    DataRotation ans = new DataRotation
+                    {
+                        angle = angle,
+                        tplimgR = tplimgr,
+                        masktplR = masktplr
+                    };
+                    if (res > 2147483648)
+                    {
+                        rotations.Add(rotated);
+                        rotations.Reverse();
+                        return rotations;
+                    }
+                    rotated.Add(ans);
                 }
                 rotations.Add(rotated);
             }
@@ -264,7 +224,7 @@ namespace Matching
         }
 
         // Reduce Noise Point
-        private List<DataPoint> ReduceNoise(List<DataPoint> ANS, int w, int h, double step)
+        private List<DataPoint> ReduceNoise(List<DataPoint> ANS, int w, int h, float step)
         {
             List<DataPoint> RES = new List<DataPoint>();
             int l = ANS.Count;
@@ -279,7 +239,7 @@ namespace Matching
                     if (j == i) continue;
                     double maxvalT = ANS[j].maxval;
                     Point centerT = ANS[j].center;
-                    double disc = Math.Sqrt(Math.Pow(centerT.X - center.X, 2) + Math.Pow(centerT.Y - center.Y, 2));
+                    float disc = (float) (Math.Sqrt(Math.Pow(centerT.X - center.X, 2) + Math.Pow(centerT.Y - center.Y, 2)));
                     if (disc < distance)
                     {
                         if (maxval < maxvalT)
@@ -289,7 +249,7 @@ namespace Matching
                         }
                     }
                 }
-                if (check == false && CheckAngleP(RES, ANS[i].angle, step).angle == -1)
+                if (check == false && CheckAngleP(RES, ANS[i]))
                 {
                     RES.Add(ANS[i]);
                 }
@@ -302,25 +262,27 @@ namespace Matching
         {
             List<DataPoint> RES = new List<DataPoint>();
             VectorOfMat refimgs = new VectorOfMat();
+            List<DataRotation> listSample = listSamples[level];
 
             CvInvoke.BuildPyramid(src_refimg, refimgs, levelPyramid);
 
             Mat refimg = refimgs[level];
-            Mat tplimg = listSamples[level][0].tplimgR;
+            Mat tplimg = listSample[0].tplimgR;
 
             Mat masktpl = Mat.Ones(tplimg.Height, tplimg.Width, Emgu.CV.CvEnum.DepthType.Cv8U, 1) * 255;
 
             int W = refimg.Width; int H = refimg.Height;
             int Wt = tplimg.Width; int Ht = tplimg.Height;
 
-            double step = Math.Sqrt(2) / (Math.Sqrt(Math.Pow(Wt, 2) + Math.Pow(Ht, 2)) * Math.PI) * 360;
+            float step = (float) (Math.Sqrt(2) / (Math.Sqrt(Math.Pow(Wt, 2) + Math.Pow(Ht, 2)) * Math.PI) * 360);
 
             if (level == levelPyramid)
             {
-                for (double angle = rotationRange.LowerValue; angle < rotationRange.UpperValue; angle += step)
+                for (int i = 0; i < listSample.Count; i ++)
                 {
-                    Mat tplimg_new = Rotation(tplimg, 1, angle);
-                    Mat masktpl_new = Rotation(masktpl, 0, angle);
+                    DataRotation dataC = listSample[i];
+                    Mat tplimg_new = dataC.tplimgR;
+                    Mat masktpl_new = dataC.masktplR;
                     int tW = tplimg_new.Width; int tH = tplimg_new.Height;
 
                     Mat result = new Mat();
@@ -331,31 +293,33 @@ namespace Matching
                     Point minloc = new Point(), maxloc = new Point();
                     CvInvoke.MinMaxLoc(result, ref minval, ref maxval, ref minloc, ref maxloc);
 
-                    if (maxval > threshScore)
+                    if (maxval >= threshScore)
                     {
                         Mat threshed = new Mat(), threshed8u = new Mat();
 
                         CvInvoke.Threshold(result, threshed, threshScore, 1, Emgu.CV.CvEnum.ThresholdType.ToZero);
+                        //CvInvoke.Imshow("res", threshed);
+                        //CvInvoke.WaitKey(0);
                         CvInvoke.InRange(threshed, new ScalarArray(threshScore), new ScalarArray(1), threshed8u);
 
                         VectorOfVectorOfPoint contours = new VectorOfVectorOfPoint();
 
                         CvInvoke.FindContours(threshed8u, contours, null, Emgu.CV.CvEnum.RetrType.External, Emgu.CV.CvEnum.ChainApproxMethod.ChainApproxSimple);
 
-                        for (int i = 0; i < contours.Size; i++)
+                        for (int j = 0; j < contours.Size; j++)
                         {
                             double min_val = 0.0, max_val = 0.0;
                             Point min_loc = new Point(), max_loc = new Point();
 
-                            Rectangle r = CvInvoke.BoundingRectangle(contours[i]);
+                            Rectangle r = CvInvoke.BoundingRectangle(contours[j]);
                             Mat roi = new Mat(result, r);
                             CvInvoke.MinMaxLoc(roi, ref min_val, ref max_val, ref min_loc, ref max_loc);
-                            PointD delta = Subpixel(roi, max_loc);
+                            PointF delta = Subpixel(roi, max_loc);
                             Point p = new Point((int)(max_loc.X + r.X + delta.X), (int)(max_loc.Y + r.Y + delta.Y));
                             Point center = new Point(p.X + tW / 2, p.Y + tH / 2);
                             DataPoint ans = new DataPoint
                             {
-                                angle = angle,
+                                angle = dataC.angle,
                                 topleft = p,
                                 center = center,
                                 maxval = max_val
@@ -370,31 +334,30 @@ namespace Matching
                 foreach (DataPoint data in ANS)
                 {
                     Mat tplimg_new, masktpl_new;
-                    double goc = data.angle;
+                    float goc = data.angle;
                     Point loc = new Point(data.topleft.X * 2, data.topleft.Y * 2);
-                    double start = goc - step * 2 > 0 ? goc - step * 2 : 0;
-                    double end = goc + step * 2 < 360 ? goc + step * 2 : 360;
+                    float start = goc - step * 2 > RotationRange.LowerValue ? goc - step * 2 : RotationRange.LowerValue;
+                    float end = goc + step * 2 < RotationRange.UpperValue ? goc + step * 2 : RotationRange.UpperValue;
 
-                    for (double angle = start; angle < end; angle += step)
+                    for (float angle = start; angle < end; angle += step)
                     {
-                        if (level >= 1)
+                        if (level > 0)
                         {
                             tplimg_new = Rotation(tplimg, 1, angle);
                             masktpl_new = Rotation(masktpl, 0, angle);
                         }
                         else
                         {
-                            List<DataRotation> rotation_ = listSamples[level];
-                            DataRotation dataC = CheckAngleR(rotation_, angle, step);
-                            if (dataC.angle == -1)
+                            int idx = (int)(angle / step);
+                            if (idx >= listSample.Count)
                             {
                                 tplimg_new = Rotation(tplimg, 1, angle);
                                 masktpl_new = Rotation(masktpl, 0, angle);
                             }
                             else
                             {
-                                tplimg_new = dataC.tplimgR;
-                                masktpl_new = dataC.masktplR;
+                                tplimg_new = listSample[idx].tplimgR;
+                                masktpl_new = listSample[idx].masktplR;
                             }
                         }
 
@@ -419,7 +382,7 @@ namespace Matching
                         double min_val = 0.0, max_val = 0.0;
                         Point min_loc = new Point(), max_loc = new Point();
                         CvInvoke.MinMaxLoc(roi, ref min_val, ref max_val, ref min_loc, ref max_loc);
-                        PointD delta = Subpixel(roi, max_loc);
+                        PointF delta = Subpixel(roi, max_loc);
                         Point p = new Point((int)(max_loc.X + x + delta.X), (int)(max_loc.Y + y + delta.Y));
                         Point center = new Point(p.X + tW / 2, p.Y + tH / 2);
                         DataPoint ans = new DataPoint
@@ -437,22 +400,12 @@ namespace Matching
             //{
             //    data.Printf();
             //}
-            return ReduceNoise(RES, Wt, Ht, step); ;
+            //Console.WriteLine("----");
+            return ReduceNoise(RES, Wt, Ht, step);
         }
 
-        /// <summary>
-        /// Setup template, support pyramid and rotation
-        /// </summary>
-        /// <param name="img"></param>
-        /// <param name="levelPyramid"></param>
-        /// <param name="rotationRange"></param>
-        public void SetTemplate(double[] rotationRange)
+        public void SetTemplate()
         {
-            if (rotationRange.Length >= 1)
-            {
-                RotationRange.LowerValue = rotationRange[0];
-                RotationRange.UpperValue = rotationRange[1];
-            }
             if (listSamples != null)
             {
                 foreach (var item in listSamples)
@@ -482,11 +435,6 @@ namespace Matching
             listSamples = ListRotation();
         }
 
-        /// <summary>
-        /// Matching with pyramid
-        /// </summary>
-        /// <param name="input"></param>
-        /// <returns></returns>
         public List<DataPoint> Matching(Mat src_refimg)
         {
             List<DataPoint> ANS = new List<DataPoint>();
@@ -507,7 +455,7 @@ namespace Matching
 
             foreach (DataPoint data in RES)
             {
-                if (data.maxval > threshScore)
+                if (data.maxval >= 0.9)
                 {
                     data.Printf();
                     Mat tplimg_new = Rotation(imageTemplate, 1, data.angle);
